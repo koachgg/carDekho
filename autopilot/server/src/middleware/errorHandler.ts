@@ -14,7 +14,8 @@ export function errorHandler(err: AppError, _req: Request, res: Response, _next:
   res.status(statusCode).json({
     error: {
       message,
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+      stack: err.stack,
+      details: err.details
     },
   });
 }
