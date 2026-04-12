@@ -17,6 +17,7 @@ if (!fs.existsSync(dbDir)) {
 }
 
 export async function initializeDatabase(): Promise<void> {
+  if (db) return; // Prevent multiple initializations in serverless
   const SQL = await initSqlJs();
 
   // Load existing DB file or create new

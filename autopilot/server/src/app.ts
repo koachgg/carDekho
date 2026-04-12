@@ -12,7 +12,9 @@ import carsRoutes from './routes/cars.routes';
 import reviewsRoutes from './routes/reviews.routes';
 
 // Load env
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -20,6 +22,20 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Async DB Initialization Middleware for Serverless
+let isDbReady = false;
+app.use(async (req, res, next) => {
+  if (!isDbReady) {
+    try {
+      await initializeDatabase();
+      isDbReady = true;
+    } catch (err) {
+      return next(err);
+    }
+  }
+  next();
+});
 
 // Routes
 app.use('/api/sessions', sessionRoutes);
@@ -42,18 +58,5 @@ app.get('*', (req, res) => {
 
 // Error handler
 app.use(errorHandler);
-
-// Initialize DB (async) then start server
-async function start() {
-  await initializeDatabase();
-  app.listen(PORT, () => {
-    console.log(`[SERVER] AutoPilot API running on http://localhost:${PORT}`);
-  });
-}
-
-start().catch((err) => {
-  console.error('[SERVER] Failed to start:', err);
-  process.exit(1);
-});
 
 export default app;
