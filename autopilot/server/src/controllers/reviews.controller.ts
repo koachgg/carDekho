@@ -3,9 +3,9 @@ import { queryAll } from '../db/database';
 import { Review } from '../types';
 import { getOrGenerateReviewSummary } from '../services/reviewSummary.service';
 
-export function getByCarId(req: Request, res: Response): void {
+export async function getByCarId(req: Request, res: Response): Promise<void> {
   const { carId } = req.params;
-  const reviews = queryAll<Review>(
+  const reviews = await queryAll<Review>(
     'SELECT * FROM reviews WHERE car_id = ? ORDER BY helpful_count DESC',
     [Number(carId)]
   );

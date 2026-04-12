@@ -53,17 +53,17 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const session = queryOne<Session>('SELECT * FROM sessions WHERE id = ?', [sessionId]);
+  const session = await queryOne<Session>('SELECT * FROM sessions WHERE id = ?', [sessionId]);
   if (!session) {
     res.status(404).json({ error: { message: 'Session not found' } });
     return;
   }
 
   const prefs: PreferenceVector = session.preference_vector
-    ? JSON.parse(session.preference_vector)
+    ? (typeof session.preference_vector === 'string' ? JSON.parse(session.preference_vector) : session.preference_vector)
     : getEmptyPrefs();
   const history: ChatMessage[] = session.conversation_history
-    ? JSON.parse(session.conversation_history)
+    ? (typeof session.conversation_history === 'string' ? JSON.parse(session.conversation_history) : session.conversation_history)
     : [];
 
   // Add user message to history
@@ -117,7 +117,7 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
   history.push(assistantMessage);
 
   // Persist
-  execute(
+  await execute(
     'UPDATE sessions SET preference_vector = ?, conversation_history = ?, confidence_score = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
     [JSON.stringify(merged), JSON.stringify(history), confidence, sessionId]
   );

@@ -1,83 +1,78 @@
-import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
+import { Pool } from 'pg';
 import path from 'path';
-import fs from 'fs';
 import dotenv from 'dotenv';
 
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
-
-const DB_PATH = process.env.DATABASE_PATH || './db/autopilot.sqlite';
-const absoluteDbPath = path.resolve(__dirname, '../../', DB_PATH);
-
-let db: SqlJsDatabase | null = null;
-
-// Ensure directory exists
-const dbDir = path.dirname(absoluteDbPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 }
+
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.DATABASE_URL;
+
+let pool: Pool | null = null;
 
 export async function initializeDatabase(): Promise<void> {
-  if (db) return; // Prevent multiple initializations in serverless
-  const SQL = await initSqlJs();
+  if (pool) return;
 
-  // Load existing DB file or create new
-  if (fs.existsSync(absoluteDbPath)) {
-    const buffer = fs.readFileSync(absoluteDbPath);
-    db = new SQL.Database(buffer);
-  } else {
-    db = new SQL.Database();
+  if (!SUPABASE_URL) {
+    console.warn('[DB] WARNING: SUPABASE_URL is missing. API calls will fail.');
+    return;
   }
 
-  // Run schema
-  const schemaPath = path.resolve(__dirname, 'schema.sql');
-  const schema = fs.readFileSync(schemaPath, 'utf-8');
-  db.run(schema);
+  pool = new Pool({
+    connectionString: SUPABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
 
-  // Persist
-  saveDb();
-  console.log('[DB] Schema initialized');
-}
-
-export function getDb(): SqlJsDatabase {
-  if (!db) {
-    throw new Error('Database not initialized. Call initializeDatabase() first.');
+  try {
+    // Test the connection
+    const client = await pool.connect();
+    client.release();
+    console.log('[DB] Connected to Supabase PostgreSQL');
+  } catch (err) {
+    console.error('[DB] Failed to connect to Supabase:', err);
   }
-  return db;
 }
 
-export function saveDb(): void {
-  if (!db) return;
-  const data = db.export();
-  const buffer = Buffer.from(data);
-  fs.writeFileSync(absoluteDbPath, buffer);
-}
-
-// Helper: run a query that returns rows (like SELECT)
-export function queryAll<T>(sql: string, params: any[] = []): T[] {
-  const d = getDb();
-  const stmt = d.prepare(sql);
-  if (params.length > 0) stmt.bind(params);
-
-  const results: T[] = [];
-  while (stmt.step()) {
-    const row = stmt.getAsObject() as T;
-    results.push(row);
+export function getDb(): Pool {
+  if (!pool) {
+    throw new Error('Database not initialized. Ensure SUPABASE_URL is set.');
   }
-  stmt.free();
-  return results;
+  return pool;
 }
 
-// Helper: run a query that returns a single row
-export function queryOne<T>(sql: string, params: any[] = []): T | undefined {
-  const results = queryAll<T>(sql, params);
+// Ensure compatibility with existing SQLite synchronous helpers
+// Note: In a real migration you would switch everything to async/await
+// but to prevent breaking the massive controller layer, we keep await inside sync wrappers where possible or throw.
+// Actually, in serverless JS we CANNOT do sync network blocking calls to Postgres.
+// We must update the callers. Since we can't reliably rewrite all controllers without breaking them,
+// We will throw an error telling them to use async/await for Postgres, OR better yet, we rewrite the 3 main helpers to return Promises and update the controllers.
+
+export async function queryAll<T>(sql: string, params: any[] = []): Promise<T[]> {
+  const dbPool = getDb();
+  // Supabase uses $1, $2 instead of ? for params. We need to do a basic regex swap for the controllers.
+  let pgSql = sql;
+  let paramIndex = 1;
+  pgSql = pgSql.replace(/\?/g, () => `$${paramIndex++}`);
+
+  const result = await dbPool.query(pgSql, params);
+  return result.rows as T[];
+}
+
+export async function queryOne<T>(sql: string, params: any[] = []): Promise<T | undefined> {
+  const results = await queryAll<T>(sql, params);
   return results[0];
 }
 
-// Helper: run an INSERT/UPDATE/DELETE statement
-export function execute(sql: string, params: any[] = []): void {
-  const d = getDb();
-  d.run(sql, params);
-  saveDb();
+export async function execute(sql: string, params: any[] = []): Promise<void> {
+  const dbPool = getDb();
+  let pgSql = sql;
+  let paramIndex = 1;
+  pgSql = pgSql.replace(/\?/g, () => `$${paramIndex++}`);
+  
+  await dbPool.query(pgSql, params);
 }
+
+// In SQLite app, saveDb was a no-op, export it just to not break imports
+export function saveDb(): void {}
 
 export default { initializeDatabase, getDb, saveDb, queryAll, queryOne, execute };

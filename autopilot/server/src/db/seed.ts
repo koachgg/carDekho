@@ -1,4 +1,4 @@
-import { initializeDatabase, getDb, saveDb } from './database';
+import { initializeDatabase, execute, saveDb } from './database';
 import * as fs from 'fs';
 import { parse } from 'csv-parse/sync';
 
@@ -71,17 +71,21 @@ async function fetchWikiImage(make: string, model: string): Promise<string | nul
 
 async function seed(): Promise<void> {
   await initializeDatabase();
-  const db = getDb();
 
   console.log('[SEED] Starting database seed with Kaggle Dataset...');
 
-  // Clear existing data
-  db.run('DELETE FROM review_summaries');
-  db.run('DELETE FROM reviews');
-  db.run('DELETE FROM sessions');
-  db.run('DELETE FROM cars');
+  // Clear existing data (using truncate/restart for Postgres if needed, but execute handles simple delete)
+  await execute('DELETE FROM review_summaries');
+  await execute('DELETE FROM reviews');
+  await execute('DELETE FROM sessions');
+  await execute('DELETE FROM cars');
 
-  // Read Kaggle CSV
+  // Read Kaggle CSV - if it doesn't exist, we'll skip the CSV loop
+  if (!fs.existsSync(CSV_PATH)) {
+    console.warn(`[SEED] CSV not found at ${CSV_PATH}. Skipping CSV import.`);
+    return;
+  }
+
   const fileContent = fs.readFileSync(CSV_PATH, 'utf-8');
   const records = parse(fileContent, {
     columns: true,
@@ -97,13 +101,12 @@ async function seed(): Promise<void> {
   let inserted = 0;
 
   for (const row of records) {
-    // "Name" is usually "Make Model" eg. "Maruti Suzuki Swift"
     const fullNameParts = row.Name ? row.Name.split(' ') : ['Unknown', 'Car'];
     const make = fullNameParts[0];
     const model = fullNameParts.slice(1).join(' ');
     
     const priceLakh = parsePrice(row.Price);
-    if (!priceLakh || priceLakh === 0) continue; // Skip cars without clear price
+    if (!priceLakh || priceLakh === 0) continue; 
 
     const mileage = extractNumber(row.Mileage);
     const engineCc = extractNumber(row.ENGINE) || extractNumber(row.Displacement);
@@ -117,17 +120,14 @@ async function seed(): Promise<void> {
     const fuelType = parseFuel(row['FUEL TYPE']);
     const bodyType = inferBodyType(row.Name, seating, length);
 
-    // Create random tags based on specs
     const tags = [];
     if (mileage && mileage > 18) tags.push('eco', 'city');
     if (bodyType === 'SUV') tags.push('family', 'highway', 'safe');
     if (priceLakh < 8) tags.push('value', 'city');
     if (power && power > 120) tags.push('performance', 'highway');
 
-    // Check Wikipedia for a real photo of the specific car
     const wikiImage = await fetchWikiImage(make, model);
 
-    // Fallback to our generated premium assets if Wikipedia doesn't have it
     const CAR_IMAGES = [
       '/cars/1.png',
       '/cars/2.png',
@@ -135,14 +135,13 @@ async function seed(): Promise<void> {
     ];
     const imageUrl = wikiImage || CAR_IMAGES[inserted % CAR_IMAGES.length];
 
-    // We don't have safety rating in this generic dataset, let's random default mostly to 3-5
     const safetyRating = Math.floor(Math.random() * 3) + 3;
 
     try {
-      db.run(carInsertSql, [
+      await execute(carInsertSql, [
         make,
         model,
-        'Base/Standard', // generic variant since dataset bundles them
+        'Base/Standard',
         priceLakh,
         fuelType,
         transmission,
@@ -154,7 +153,7 @@ async function seed(): Promise<void> {
         torque,
         boot,
         safetyRating,
-        mileage ? parseFloat((100 / mileage).toFixed(1)) : 5.0, // rough running cost
+        mileage ? parseFloat((100 / mileage).toFixed(1)) : 5.0,
         imageUrl,
         null,
         null,
@@ -164,6 +163,8 @@ async function seed(): Promise<void> {
     } catch (err) {
       console.warn(`Failed to insert car ${row.Name}:`, err);
     }
+    
+    if (inserted % 10 === 0) console.log(`[SEED] Processed ${inserted} cars...`);
   }
 
   console.log(`[SEED] Successfully inserted ${inserted} cars from Kaggle dataset.`);

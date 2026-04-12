@@ -1,4 +1,4 @@
-import { queryAll, queryOne, execute } from '../db/database';
+import { queryAll } from '../db/database';
 import { Car, PreferenceVector, ScoredCar } from '../types';
 import { scoreCar } from './scoring.service';
 import { cache, TTL } from './cache.service';
@@ -9,7 +9,7 @@ export async function getRecommendations(prefs: PreferenceVector, limit: number 
   const cached = cache.get<ScoredCar[]>(cacheKey);
   if (cached) return cached;
 
-  const allCars = queryAll<Car>('SELECT * FROM cars');
+  const allCars = await queryAll<Car>('SELECT * FROM cars');
 
   let scored: ScoredCar[] = allCars
     .map((car) => ({
@@ -76,8 +76,8 @@ function generateReason(car: Car, prefs: PreferenceVector): string {
 
   if (prefs.usage) {
     try {
-      const tags = car.tags ? (JSON.parse(car.tags) as string[]) : [];
-      if (tags.includes(prefs.usage)) {
+      const tags = car.tags ? (typeof car.tags === 'string' ? JSON.parse(car.tags) : car.tags) : [];
+      if (Array.isArray(tags) && tags.includes(prefs.usage)) {
         reasons.push(`well-suited for ${prefs.usage} use`);
       }
     } catch { /* ignore */ }

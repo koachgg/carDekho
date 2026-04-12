@@ -5,7 +5,7 @@ import { getRecommendations } from '../services/recommendation.service';
 import { callLLM } from '../services/llm.service';
 import { cache, TTL } from '../services/cache.service';
 
-export function search(req: Request, res: Response): void {
+export async function search(req: Request, res: Response): Promise<void> {
   const { fuel_type, body_type, transmission, min_price, max_price, min_safety } = req.query;
 
   let sql = 'SELECT * FROM cars WHERE 1=1';
@@ -20,12 +20,12 @@ export function search(req: Request, res: Response): void {
 
   sql += ' ORDER BY price_lakh ASC';
 
-  const cars = queryAll<Car>(sql, params);
+  const cars = await queryAll<Car>(sql, params);
   res.json(cars);
 }
 
-export function getById(req: Request, res: Response): void {
-  const car = queryOne<Car>('SELECT * FROM cars WHERE id = ?', [Number(req.params.id)]);
+export async function getById(req: Request, res: Response): Promise<void> {
+  const car = await queryOne<Car>('SELECT * FROM cars WHERE id = ?', [Number(req.params.id)]);
 
   if (!car) {
     res.status(404).json({ error: { message: 'Car not found' } });
@@ -43,12 +43,12 @@ export async function recommend(req: Request, res: Response): Promise<void> {
   if (preference_vector) {
     prefs = preference_vector;
   } else if (sessionId) {
-    const session = queryOne<Session>('SELECT * FROM sessions WHERE id = ?', [sessionId]);
+    const session = await queryOne<Session>('SELECT * FROM sessions WHERE id = ?', [sessionId]);
     if (!session || !session.preference_vector) {
       res.status(400).json({ error: { message: 'No preferences found for session' } });
       return;
     }
-    prefs = JSON.parse(session.preference_vector);
+    prefs = typeof session.preference_vector === 'string' ? JSON.parse(session.preference_vector) : session.preference_vector;
   } else {
     res.status(400).json({ error: { message: 'preference_vector or sessionId required' } });
     return;
@@ -66,7 +66,7 @@ export async function compare(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const cars = queryAll<Car>(
+  const cars = await queryAll<Car>(
     `SELECT * FROM cars WHERE id IN (${carIds.map(() => '?').join(',')})`,
     carIds
   );
@@ -98,7 +98,7 @@ export async function compare(req: Request, res: Response): Promise<void> {
   if (!verdict) {
     let prefContext = '';
     if (sessionId) {
-      const session = queryOne<{ preference_vector: string }>('SELECT preference_vector FROM sessions WHERE id = ?', [sessionId]);
+      const session = await queryOne<{ preference_vector: string }>('SELECT preference_vector FROM sessions WHERE id = ?', [sessionId]);
       if (session?.preference_vector) {
         prefContext = `\n\nUser preferences: ${session.preference_vector}`;
       }

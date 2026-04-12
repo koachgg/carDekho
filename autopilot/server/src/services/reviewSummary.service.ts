@@ -9,7 +9,7 @@ Do not use bullet points. Return only the summary paragraph.`;
 
 export async function getOrGenerateReviewSummary(carId: number): Promise<ReviewSummary | null> {
   // Check DB cache first
-  const cached = queryOne<ReviewSummary>(
+  const cached = await queryOne<ReviewSummary>(
     'SELECT * FROM review_summaries WHERE car_id = ?',
     [carId]
   );
@@ -23,12 +23,12 @@ export async function getOrGenerateReviewSummary(carId: number): Promise<ReviewS
   }
 
   // Fetch reviews
-  const reviews = queryAll<Review>(
+  const reviews = await queryAll<Review>(
     'SELECT * FROM reviews WHERE car_id = ? ORDER BY helpful_count DESC',
     [carId]
   );
 
-  const car = queryOne<{ make: string; model: string; variant: string; body_type: string; fuel_type: string; price_lakh: number }>(
+  const car = await queryOne<{ make: string; model: string; variant: string; body_type: string; fuel_type: string; price_lakh: number }>(
     'SELECT make, model, variant, body_type, fuel_type, price_lakh FROM cars WHERE id = ?',
     [carId]
   );
@@ -45,14 +45,14 @@ export async function getOrGenerateReviewSummary(carId: number): Promise<ReviewS
       512,
       false
     );
-    return saveSummary(carId, specSummary || `Experts generally view the ${carName} as a solid choice in its segment, offering balanced performance and reliable value for its price of ₹${car.price_lakh} Lakh.`);
+    return await saveSummary(carId, specSummary || `Experts generally view the ${carName} as a solid choice in its segment, offering balanced performance and reliable value for its price of ₹${car.price_lakh} Lakh.`);
   }
 
   // Build review text for LLM
   let reviewText = reviews
     .map((r) => {
-      const pros = r.pros ? JSON.parse(r.pros).join(', ') : '';
-      const cons = r.cons ? JSON.parse(r.cons).join(', ') : '';
+      const pros = r.pros ? (Array.isArray(r.pros) ? r.pros.join(', ') : (typeof r.pros === 'string' ? JSON.parse(r.pros).join(', ') : '')) : '';
+      const cons = r.cons ? (Array.isArray(r.cons) ? r.cons.join(', ') : (typeof r.cons === 'string' ? JSON.parse(r.cons).join(', ') : '')) : '';
       return `[${r.reviewer_type}, ${r.rating}/5] "${r.title}" — ${r.body}${pros ? ` Pros: ${pros}.` : ''}${cons ? ` Cons: ${cons}.` : ''}`;
     })
     .join('\n\n');
@@ -66,16 +66,17 @@ export async function getOrGenerateReviewSummary(carId: number): Promise<ReviewS
   if (!summary) {
     const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
     const fallback = `Customers generally rate the ${carName} ${avgRating.toFixed(1)} out of 5 stars. Owners frequently praise its overall value and reliability. Some users note areas for improvement in certain aspects of the ownership experience.`;
-    return saveSummary(carId, fallback);
+    return await saveSummary(carId, fallback);
   }
 
-  return saveSummary(carId, summary);
+  return await saveSummary(carId, summary);
 }
 
-function saveSummary(carId: number, summary: string): ReviewSummary {
+async function saveSummary(carId: number, summary: string): Promise<ReviewSummary> {
   const now = new Date().toISOString();
-  execute(
-    'INSERT OR REPLACE INTO review_summaries (car_id, summary, generated_at) VALUES (?, ?, ?)',
+  // PostgreSQL ON CONFLICT syntax
+  await execute(
+    'INSERT INTO review_summaries (car_id, summary, generated_at) VALUES (?, ?, ?) ON CONFLICT (car_id) DO UPDATE SET summary = EXCLUDED.summary, generated_at = EXCLUDED.generated_at',
     [carId, summary, now]
   );
   return { car_id: carId, summary, generated_at: now };

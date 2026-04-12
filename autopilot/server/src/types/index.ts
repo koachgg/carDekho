@@ -20,7 +20,7 @@ export interface Car {
   image_url: string;
   image_url_2: string | null;
   image_url_3: string | null;
-  tags: string | null; // JSON array
+  tags: string | string[] | null;
   created_at: string;
 }
 
@@ -37,16 +37,16 @@ export interface Review {
   title: string;
   body: string;
   ownership_months: number | null;
-  pros: string | null; // JSON array
-  cons: string | null; // JSON array
+  pros: string | string[] | null;
+  cons: string | string[] | null;
   helpful_count: number;
   created_at: string;
 }
 
 export interface Session {
   id: string;
-  preference_vector: string | null; // JSON
-  conversation_history: string | null; // JSON array
+  preference_vector: any | string | null;
+  conversation_history: any | string | null;
   confidence_score: number;
   created_at: string;
   updated_at: string;

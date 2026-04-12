@@ -52,24 +52,19 @@ export function scoreCar(car: Car, prefs: PreferenceVector): number {
     score -= 15;
   }
 
-  // Usage-to-tag match
-  if (prefs.usage && car.tags) {
-    try {
-      const tags = JSON.parse(car.tags) as string[];
-      if (tags.includes(prefs.usage)) score += 15;
-    } catch {
-      // Ignore malformed tags
+  // Tag interactions
+  const carTags = car.tags ? (Array.isArray(car.tags) ? car.tags : (typeof car.tags === 'string' ? JSON.parse(car.tags) : [])) : [];
+  
+  if (Array.isArray(carTags)) {
+     // Usage-to-tag match
+    if (prefs.usage && carTags.includes(prefs.usage)) {
+        score += 15;
     }
-  }
 
-  // Tag overlap bonus
-  if (prefs.tags?.length && car.tags) {
-    try {
-      const carTags = JSON.parse(car.tags) as string[];
-      const overlap = prefs.tags.filter((t) => carTags.includes(t)).length;
-      score += overlap * 5;
-    } catch {
-      // Ignore
+    // Tag overlap bonus
+    if (prefs.tags?.length) {
+        const overlap = prefs.tags.filter((t) => carTags.includes(t)).length;
+        score += overlap * 5;
     }
   }
 
