@@ -43,6 +43,26 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/cars', carsRoutes);
 app.use('/api/reviews', reviewsRoutes);
 
+app.get('/api/health-check', async (req, res) => {
+  try {
+    const db = getDb();
+    const result = await db.query('SELECT NOW()');
+    res.json({ 
+      status: 'ok', 
+      db: 'connected', 
+      time: result.rows[0].now,
+      env: process.env.NODE_ENV
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', db: 'failed', error: String(err) });
+  }
+});
+
+// Home route
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Health check
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
