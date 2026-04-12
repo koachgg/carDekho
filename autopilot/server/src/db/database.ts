@@ -36,7 +36,7 @@ export async function initializeDatabase(): Promise<void> {
     ssl: { rejectUnauthorized: false },
     max: 10,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+    connectionTimeoutMillis: 30000, // Increased for cross-region stability
   });
 
   try {
