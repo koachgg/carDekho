@@ -29,23 +29,23 @@ let pool: Pool | null = null;
 export async function initializeDatabase(): Promise<void> {
   if (pool) return;
 
-  console.log(`[DB] Initializing with: ${connectionString.split('@')[1]} (masked password)`);
+  const maskedHost = connectionString.split('@')[1].split(':')[0];
+  console.log(`[DB] Attempting connection to: ${maskedHost}`);
 
   pool = new Pool({
     connectionString,
     ssl: { rejectUnauthorized: false },
-    max: 10,
+    max: 5, // Optimized for Nano tier
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 30000, // Increased for cross-region stability
+    connectionTimeoutMillis: 30000,
   });
 
   try {
-    // Test the connection
     const client = await pool.connect();
     client.release();
-    console.log('[DB] Connected to Supabase PostgreSQL');
+    console.log('[DB] ✅ Connected to Supabase PostgreSQL');
   } catch (err) {
-    console.error('[DB] Failed to connect to Supabase:', err);
+    console.error('[DB] ❌ Failed to connect to Supabase:', err);
     throw err;
   }
 }
