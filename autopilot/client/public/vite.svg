@@ -1,0 +1,20 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Glowing gradient background circle -->
+  <circle cx="128" cy="128" r="128" fill="url(#car_gradient)"/>
+  
+  <!-- Sleek Car Silhouette -->
+  <path d="M48 152L64.8 107.2C68 98.6 76.5 93 86 93H170C179.5 93 188 98.6 191.2 107.2L208 152V192C208 200.8 200.8 208 192 208H180C171.2 208 164 200.8 164 192V180H92V192C92 200.8 84.8 208 76 208H64C55.2 208 48 200.8 48 192V152Z" fill="white"/>
+  
+  <!-- Headlights & details -->
+  <rect x="76" y="152" width="28" height="12" rx="6" fill="url(#car_gradient)"/>
+  <rect x="152" y="152" width="28" height="12" rx="6" fill="url(#car_gradient)"/>
+  <path d="M72 136H184L174 110H82L72 136Z" fill="url(#car_gradient)" fill-opacity="0.2"/>
+
+  <!-- Logo text overlay or clean look (keeping it clean for favicon) -->
+  <defs>
+    <linearGradient id="car_gradient" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A855F7"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+  </defs>
+</svg>
