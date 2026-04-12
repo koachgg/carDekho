@@ -10,15 +10,16 @@ if (process.env.NODE_ENV !== 'production') {
 function getConnectionString(): string {
   const envSupabase = process.env.SUPABASE_URL;
   const envDatabase = process.env.DATABASE_URL;
-  const fallback = 'postgresql://postgres.ncnvfeervnbbzhsnlomd:27b7keP1jD1mgRcw@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres';
+  // Use the pooler host as fallback since it is verified to resolve for this project
+  const fallback = 'postgresql://postgres.ncnvfeervnbbzhsnlomd:27b7keP1jD1mgRcw@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres?sslmode=require';
 
-  // 1. Try DATABASE_URL first (standard Vercel/Heroku/Railway)
+  // 1. Try DATABASE_URL first
   if (envDatabase && envDatabase.startsWith('postgresql')) return envDatabase;
   
-  // 2. Try SUPABASE_URL but ONLY if it's a postgres string
+  // 2. Try SUPABASE_URL
   if (envSupabase && envSupabase.startsWith('postgresql')) return envSupabase;
 
-  // 3. Fallback to our verified URL
+  // 3. Fallback
   return fallback;
 }
 
