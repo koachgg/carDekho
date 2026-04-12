@@ -67,4 +67,37 @@ For maximum performance, deploy your Vercel functions in the **Tokyo (hnd1)** re
 
 ---
 
+## 🧠 Design & Development Reflections
+
+### 1. What did you build and why? What did you deliberately cut?
+I built **AutoPilot**, an AI-first car advisor that mimics a premium dealership experience. Buying a car is overwhelming; this tool simplifies it by letting users talk naturally about their life (e.g., "I need a car for weekly grocery runs and family trips") instead of filtering through 50 technical specs.
+
+**Deliberate Cuts:**
+- **User Authentication**: To keep the demo frictionless, I opted for UUID-based sessions instead of a full login flow. 
+- **Payment/Booking Integration**: Focused on the "Discovery" and "Comparison" phases rather than the "Checkout" phase.
+- **Real-time Inventory**: Used a robust seeded dataset instead of live-scraping, which ensures speed and reliability for the advisor logic.
+
+### 2. What’s your tech stack and why did you pick it?
+- **React/TypeScript**: For a highly interactive, "apps-like" frontend that provides immediate feedback.
+- **Supabase (Postgres)**: Picked for its excellent **JSONB support**, which is essential for storing and querying the complex AI-generated preference vectors.
+- **Vercel**: The industry standard for frontend speed and serverless backend scaling.
+
+### 3. AI Delegation vs. Manual Effort
+- **What was delegated to AI?**
+  - **The Intelligence Layer**: Intent extraction and personalized reasoning are handled by Gemini/Groq.
+  - **Boilerplate**: AI helped quickly generate the initial React component shells and SQL migration scripts.
+- **What was done manually?**
+  - **Deployment Engineering**: Troubleshooting regional latency and Supabase connection poolers required deep manual tuning that standard AI assistants often overlook.
+  - **State Logic**: Designing the flow of how preferences "evolve" during a conversation.
+- **Where did tools help most?** Speeding up the "Visual to Code" pipeline—getting the premium glassmorphism UI from concept to CSS in minutes.
+- **Where did they get in the way?** Debugging serverless-specific constraints (read-only filesystems, 10s timeouts) often required going against "standard" AI suggestions.
+
+### 4. If I had another 4 hours, what would I add?
+- **Proper Auth & Profiles**: Allow users to save their shortlists across devices indefinitely.
+- **Interactive Price Trends**: Add charts showing how the price is expected to depreciate over 5 years.
+- **Mobile Native Polish**: While responsive, a dedicated "swipe-to-compare" mobile interface would be a game-changer.
+- **Smart Filter Sidebar**: A hybrid approach where manual filters update the AI's understanding in real-time.
+
+---
+
 Built with ❤️ for car enthusiasts.
