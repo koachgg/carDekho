@@ -10,8 +10,8 @@ if (process.env.NODE_ENV !== 'production') {
 function getConnectionString(): string {
   const envSupabase = process.env.SUPABASE_URL;
   const envDatabase = process.env.DATABASE_URL;
-  // Use the direct host as fallback to bypass pooler issues
-  const fallback = 'postgresql://postgres:QbfTjYqgPcDfr3zA@db.ncnvfeervnbbzhsnlomd.supabase.co:5432/postgres?sslmode=require';
+  // Use the pooler host as fallback since it is verified to resolve for this project
+  const fallback = 'postgresql://postgres.ncnvfeervnbbzhsnlomd:QbfTjYqgPcDfr3zA@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?sslmode=require';
 
   // 1. Try DATABASE_URL first
   if (envDatabase && envDatabase.startsWith('postgresql')) return envDatabase;
