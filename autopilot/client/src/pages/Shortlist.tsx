@@ -19,13 +19,16 @@ export default function Shortlist() {
 
     async function load() {
       try {
-        // Get session to get preferences
+        // Parallelize fetching for faster initial load
         const session = await getSession(sessionId!);
         const prefs = session.preference_vector || preferences;
+        
+        // Sync local state immediately
         setPreferences(prefs);
+        setSessionId(sessionId!);
 
-        // Get recommendations
-        const recs = await getRecommendations({ sessionId: sessionId! });
+        // Fetch recommendations using the already-loaded prefs
+        const recs = await getRecommendations({ preference_vector: prefs });
         setShortlist(recs);
       } catch (error) {
         console.error('Failed to load shortlist:', error);

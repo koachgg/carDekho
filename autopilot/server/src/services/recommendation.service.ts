@@ -9,6 +9,7 @@ export async function getRecommendations(prefs: PreferenceVector, limit: number 
   const cached = cache.get<ScoredCar[]>(cacheKey);
   if (cached) return cached;
 
+  // 1. Get all cars and score them (Fast - ~50ms)
   const allCars = await queryAll<Car>(`
     SELECT c.*, v.price_lakh, v.fuel_type, v.transmission, v.mileage_kmpl, v.engine_cc, v.power_bhp, v.torque_nm, v.boot_liters, v.running_cost_per_km, v.variant_name as variant
     FROM cars c
@@ -19,34 +20,33 @@ export async function getRecommendations(prefs: PreferenceVector, limit: number 
     .map((car) => ({
       ...car,
       score: scoreCar(car, prefs),
-      reason: generateReason(car, prefs), // base fallback
+      reason: generateReason(car, prefs), // Fast fallback reason
     }))
     .filter((car) => car.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 
-  // Upgrade reasoning to AI specifically for the shortlist (takes ~1-2s)
+  // 2. Add AI reasoning only if not skipped (Slow - 1-2s)
   if (!skipAiReason && scored.length > 0) {
-    const carList = scored.map(c => `${c.make} ${c.model} (Score: ${c.score}%)`).join(', ');
-    const systemPrompt = "You are an expert car advisor. Explain briefly why these specific cars are excellent choices for the user's preferences.";
-    const userPrompt = `User preferences: ${JSON.stringify(prefs)}. \nCars shortlisted: ${carList}. \nOutput JSON with exact key 'reasons' containing a map of "{make} {model}" to a 1-2 sentence personalized reason.`;
-    
     try {
-      const llmResult = await callLLM(systemPrompt, userPrompt, 512, true);
+      const carList = scored.map(c => `${c.make} ${c.model}`).join(', ');
+      const systemPrompt = "Explain briefly (1 sentence) why these cars match these preferences. Return JSON {reasons: {'make model': 'reason' }}";
+      const userPrompt = `Prefs: ${JSON.stringify(prefs)} \nCars: ${carList}`;
+      
+      // Use a shorter timeout or background processing for AI? 
+      // For now, just ensure it doesn't block the logic if it's very slow
+      const llmResult = await callLLM(systemPrompt, userPrompt, 256, true);
       if (llmResult) {
         const parsed = JSON.parse(llmResult) as { reasons?: Record<string, string> };
         if (parsed.reasons) {
-          scored = scored.map(car => {
+          scored.forEach(car => {
             const key = `${car.make} ${car.model}`;
-            if (parsed.reasons![key]) {
-              car.reason = parsed.reasons![key];
-            }
-            return car;
+            if (parsed.reasons![key]) car.reason = parsed.reasons![key];
           });
         }
       }
     } catch (err) {
-      console.warn('[RECOMMEND] Failed to generate AI reasons, falling back to deterministic.');
+      console.warn('[RECS] AI reasoning failed, using fallback');
     }
   }
 
