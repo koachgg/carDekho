@@ -22,16 +22,18 @@ export async function getOrGenerateReviewSummary(carId: number): Promise<ReviewS
     }
   }
 
-  // Fetch reviews
-  const reviews = await queryAll<Review>(
-    'SELECT * FROM reviews WHERE car_id = ? ORDER BY helpful_count DESC',
-    [carId]
-  );
+  // Fetch reviews and car specs in parallel
+  const [reviews, car] = await Promise.all([
+    queryAll<Review>(
+      'SELECT * FROM reviews WHERE car_id = ? ORDER BY helpful_count DESC',
+      [carId]
+    ),
+    queryOne<{ make: string; model: string; variant: string; body_type: string; fuel_type: string; price_lakh: number }>(
+      'SELECT make, model, variant, body_type, fuel_type, price_lakh FROM cars WHERE id = ?',
+      [carId]
+    )
+  ]);
 
-  const car = await queryOne<{ make: string; model: string; variant: string; body_type: string; fuel_type: string; price_lakh: number }>(
-    'SELECT make, model, variant, body_type, fuel_type, price_lakh FROM cars WHERE id = ?',
-    [carId]
-  );
   if (!car) return null;
 
   const carName = `${car.make} ${car.model} ${car.variant}`;
