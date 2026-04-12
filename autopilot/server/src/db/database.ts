@@ -6,7 +6,7 @@ if (process.env.NODE_ENV !== 'production') {
   dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'postgresql://postgres.ncnvfeervnbbzhsnlomd:Abhigyan%4011@aws-0-ap-south-1.pooler.supabase.com:6543/postgres';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'postgresql://postgres.ncnvfeervnbbzhsnlomd:qAC3RHwsCc8oL0oa@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres';
 
 let pool: Pool | null = null;
 
@@ -20,7 +20,10 @@ export async function initializeDatabase(): Promise<void> {
 
   pool = new Pool({
     connectionString: SUPABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
   });
 
   try {
@@ -30,6 +33,7 @@ export async function initializeDatabase(): Promise<void> {
     console.log('[DB] Connected to Supabase PostgreSQL');
   } catch (err) {
     console.error('[DB] Failed to connect to Supabase:', err);
+    throw err;
   }
 }
 
