@@ -37,8 +37,12 @@ export async function getById(req: Request, res: Response): Promise<void> {
 
   res.json({
     ...session,
-    preference_vector: session.preference_vector ? JSON.parse(session.preference_vector) : null,
-    conversation_history: session.conversation_history ? JSON.parse(session.conversation_history) : [],
+    preference_vector: typeof session.preference_vector === 'string' 
+      ? JSON.parse(session.preference_vector) 
+      : session.preference_vector,
+    conversation_history: typeof session.conversation_history === 'string' 
+      ? JSON.parse(session.conversation_history) 
+      : session.conversation_history,
   });
 }
 
@@ -66,7 +70,11 @@ export async function updatePreferences(req: Request, res: Response): Promise<vo
   const updated = await queryOne<Session>('SELECT * FROM sessions WHERE id = ?', [id]);
   res.json({
     ...updated,
-    preference_vector: updated?.preference_vector ? JSON.parse(updated.preference_vector) : null,
-    conversation_history: updated?.conversation_history ? JSON.parse(updated.conversation_history) : [],
+    preference_vector: typeof updated?.preference_vector === 'string' 
+      ? JSON.parse(updated.preference_vector) 
+      : updated?.preference_vector,
+    conversation_history: typeof updated?.conversation_history === 'string' 
+      ? JSON.parse(updated.conversation_history) 
+      : updated?.conversation_history,
   });
 }
