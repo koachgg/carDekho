@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 
 // Database Configuration
-const SUPABASE_URL = process.env.DATABASE_URL || process.env.SUPABASE_URL || 'postgresql://postgres.ncnvfeervnbbzhsnlomd:27b7keP1jD1mgRcw@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres';
+const SUPABASE_URL = process.env.DATABASE_URL || process.env.SUPABASE_URL || 'postgresql://postgres.ncnvfeervnbbzhsnlomd:27b7keP1jD1mgRcw@db.ncnvfeervnbbzhsnlomd.supabase.co:5432/postgres?sslmode=require';
 
 const pool = new Pool({
   connectionString: SUPABASE_URL,
