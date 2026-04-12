@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 
-import { initializeDatabase } from './db/database';
+import { initializeDatabase, getDb } from './db/database';
 import { errorHandler } from './middleware/errorHandler';
 
 import sessionRoutes from './routes/session.routes';
