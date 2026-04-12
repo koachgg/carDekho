@@ -8,25 +8,32 @@ import { cache, TTL } from '../services/cache.service';
 export async function search(req: Request, res: Response): Promise<void> {
   const { fuel_type, body_type, transmission, min_price, max_price, min_safety } = req.query;
 
-  let sql = `
-    SELECT c.*, v.price_lakh, v.fuel_type, v.transmission, v.mileage_kmpl, v.engine_cc, v.power_bhp, v.torque_nm, v.boot_liters, v.running_cost_per_km, v.variant_name as variant
-    FROM cars c
-    JOIN variants v ON c.id = v.car_id
-    WHERE 1=1
-  `;
-  const params: unknown[] = [];
+  try {
+    let sql = `
+      SELECT c.*, v.price_lakh, v.fuel_type, v.transmission, v.mileage_kmpl, v.engine_cc, v.power_bhp, v.torque_nm, v.boot_liters, v.running_cost_per_km, v.variant_name as variant
+      FROM cars c
+      JOIN variants v ON c.id = v.car_id
+      WHERE 1=1
+    `;
+    const params: unknown[] = [];
 
-  if (fuel_type) { sql += ' AND v.fuel_type = ?'; params.push(fuel_type); }
-  if (body_type) { sql += ' AND c.body_type = ?'; params.push(body_type); }
-  if (transmission) { sql += ' AND v.transmission = ?'; params.push(transmission); }
-  if (min_price) { sql += ' AND v.price_lakh >= ?'; params.push(Number(min_price)); }
-  if (max_price) { sql += ' AND v.price_lakh <= ?'; params.push(Number(max_price)); }
-  if (min_safety) { sql += ' AND c.safety_rating >= ?'; params.push(Number(min_safety)); }
+    if (fuel_type) { sql += ' AND v.fuel_type = ?'; params.push(fuel_type); }
+    if (body_type) { sql += ' AND c.body_type = ?'; params.push(body_type); }
+    if (transmission) { sql += ' AND v.transmission = ?'; params.push(transmission); }
+    if (min_price) { sql += ' AND v.price_lakh >= ?'; params.push(Number(min_price)); }
+    if (max_price) { sql += ' AND v.price_lakh <= ?'; params.push(Number(max_price)); }
+    if (min_safety) { sql += ' AND c.safety_rating >= ?'; params.push(Number(min_safety)); }
 
-  sql += ' ORDER BY v.price_lakh ASC';
+    sql += ' ORDER BY v.price_lakh ASC';
 
-  const cars = await queryAll<Car>(sql, params);
-  res.json(cars);
+    console.log('[API] Searching cars...');
+    const cars = await queryAll<Car>(sql, params);
+    console.log(`[API] Found ${cars.length} cars.`);
+    res.json(cars);
+  } catch (err) {
+    console.error('[API] Search error:', err);
+    res.status(500).json({ error: { message: 'Internal server error', detail: String(err) } });
+  }
 }
 
 export async function getById(req: Request, res: Response): Promise<void> {
