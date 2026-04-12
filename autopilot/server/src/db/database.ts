@@ -6,20 +6,32 @@ if (process.env.NODE_ENV !== 'production') {
   dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'postgresql://postgres.ncnvfeervnbbzhsnlomd:qAC3RHwsCc8oL0oa@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres';
+// Helper to get a valid connection string
+function getConnectionString(): string {
+  const envSupabase = process.env.SUPABASE_URL;
+  const envDatabase = process.env.DATABASE_URL;
+  const fallback = 'postgresql://postgres.ncnvfeervnbbzhsnlomd:qAC3RHwsCc8oL0oa@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres';
 
+  // 1. Try DATABASE_URL first (standard Vercel/Heroku/Railway)
+  if (envDatabase && envDatabase.startsWith('postgresql')) return envDatabase;
+  
+  // 2. Try SUPABASE_URL but ONLY if it's a postgres string
+  if (envSupabase && envSupabase.startsWith('postgresql')) return envSupabase;
+
+  // 3. Fallback to our verified URL
+  return fallback;
+}
+
+const connectionString = getConnectionString();
 let pool: Pool | null = null;
 
 export async function initializeDatabase(): Promise<void> {
   if (pool) return;
 
-  if (!SUPABASE_URL) {
-    console.warn('[DB] WARNING: SUPABASE_URL is missing. API calls will fail.');
-    return;
-  }
+  console.log(`[DB] Initializing with: ${connectionString.split('@')[1]} (masked password)`);
 
   pool = new Pool({
-    connectionString: SUPABASE_URL,
+    connectionString,
     ssl: { rejectUnauthorized: false },
     max: 10,
     idleTimeoutMillis: 30000,
