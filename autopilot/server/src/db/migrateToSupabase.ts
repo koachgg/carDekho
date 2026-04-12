@@ -4,9 +4,11 @@ import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 
-dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'postgresql://postgres:Abhigyan%4011@db.ncnvfeervnbbzhsnlomd.supabase.co:5432/postgres';
+// NOTE: If you are on an IPv4-only network, use the Connection Pooler URL from Supabase Settings.
+// It usually looks like: postgresql://postgres.[PROJECT_ID]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
+const SUPABASE_URL = process.env.SUPABASE_URL || 'postgresql://postgres.ncnvfeervnbbzhsnlomd:qAC3RHwsCc8oL0oa@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres';
 
 async function migrate() {
   console.log('[MIGRATE] Starting migration from SQLite to Supabase...');
@@ -23,10 +25,16 @@ async function migrate() {
   console.log('[MIGRATE] SQLite DB loaded.');
 
   // 2. Initialize Postgres
+  const connectionString = SUPABASE_URL;
   const pgClient = new Client({
-    connectionString: SUPABASE_URL,
+    connectionString,
     ssl: { rejectUnauthorized: false }
   });
+  
+  // Mask password for logging
+  const maskedUrl = connectionString.replace(/:([^@]+)@/, ':****@');
+  console.log(`[MIGRATE] Attempting connection to: ${maskedUrl}`);
+  
   await pgClient.connect();
   console.log('[MIGRATE] Connected to Supabase.');
 
@@ -39,20 +47,10 @@ async function migrate() {
       id SERIAL PRIMARY KEY,
       make VARCHAR(255) NOT NULL,
       model VARCHAR(255) NOT NULL,
-      variant VARCHAR(255) NOT NULL,
-      price_lakh NUMERIC(10, 2) NOT NULL,
-      fuel_type VARCHAR(50) NOT NULL,
-      transmission VARCHAR(50) NOT NULL,
       body_type VARCHAR(50) NOT NULL,
       seating INTEGER NOT NULL,
-      mileage_kmpl NUMERIC(10, 2),
-      engine_cc INTEGER,
-      power_bhp NUMERIC(10, 2),
-      torque_nm NUMERIC(10, 2),
-      boot_liters INTEGER,
       safety_rating NUMERIC(3, 1),
-      running_cost_per_km NUMERIC(10, 2),
-      image_url TEXT NOT NULL,
+      image_url TEXT,
       image_url_2 TEXT,
       image_url_3 TEXT,
       tags TEXT,
@@ -106,15 +104,23 @@ async function migrate() {
     return results;
   };
 
-  // 4. Migrate Cars
+  // 4. Migrate Cars and Variants (Normalized in Supabase)
   const cars = getSqliteRows('SELECT * FROM cars');
   console.log(`[MIGRATE] Found ${cars.length} cars in SQLite.`);
   if (cars.length > 0) {
-    const carValues = cars.map(c => `(${c.id}, $$${c.make}$$, $$${c.model}$$, $$${c.variant}$$, ${c.price_lakh}, $$${c.fuel_type}$$, $$${c.transmission}$$, $$${c.body_type}$$, ${c.seating}, ${c.mileage_kmpl || 'NULL'}, ${c.engine_cc || 'NULL'}, ${c.power_bhp || 'NULL'}, ${c.torque_nm || 'NULL'}, ${c.boot_liters || 'NULL'}, ${c.safety_rating || 'NULL'}, ${c.running_cost_per_km || 'NULL'}, $$${c.image_url}$$, ${c.image_url_2 ? `$$${c.image_url_2}$$` : 'NULL'}, ${c.image_url_3 ? `$$${c.image_url_3}$$` : 'NULL'}, ${c.tags ? `$$${c.tags}$$` : 'NULL'}, '${c.created_at}')`).join(',\n');
-    await pgClient.query(`INSERT INTO cars (id, make, model, variant, price_lakh, fuel_type, transmission, body_type, seating, mileage_kmpl, engine_cc, power_bhp, torque_nm, boot_liters, safety_rating, running_cost_per_km, image_url, image_url_2, image_url_3, tags, created_at) VALUES ${carValues}`);
+    // Insert into cars table
+    const carValues = cars.map(c => `(${c.id}, $$${c.make}$$, $$${c.model}$$, $$${c.body_type}$$, ${c.seating}, ${c.safety_rating || 'NULL'}, $$${c.image_url}$$, ${c.image_url_2 ? `$$${c.image_url_2}$$` : 'NULL'}, ${c.image_url_3 ? `$$${c.image_url_3}$$` : 'NULL'}, ${c.tags ? `$$${c.tags}$$` : 'NULL'}, '${c.created_at}')`).join(',\n');
+    await pgClient.query(`INSERT INTO cars (id, make, model, body_type, seating, safety_rating, image_url, image_url_2, image_url_3, tags, created_at) VALUES ${carValues}`);
     console.log(`[MIGRATE] Inserted ${cars.length} cars into Supabase.`);
+    
+    // Insert into variants table
+    const variantValues = cars.map(c => `(${c.id}, $$${c.variant || 'Base'}$$, ${c.price_lakh}, $$${c.fuel_type}$$, $$${c.transmission}$$, ${c.mileage_kmpl || 'NULL'}, ${c.engine_cc || 'NULL'}, ${c.power_bhp || 'NULL'}, ${c.torque_nm || 'NULL'}, ${c.boot_liters || 'NULL'}, ${c.running_cost_per_km || 'NULL'}, '${c.created_at}')`).join(',\n');
+    await pgClient.query(`INSERT INTO variants (car_id, variant_name, price_lakh, fuel_type, transmission, mileage_kmpl, engine_cc, power_bhp, torque_nm, boot_liters, running_cost_per_km, created_at) VALUES ${variantValues}`);
+    console.log(`[MIGRATE] Inserted ${cars.length} variants into Supabase.`);
+
     try {
       await pgClient.query("SELECT setval('cars_id_seq', (SELECT MAX(id) FROM cars));");
+      await pgClient.query("SELECT setval('variants_id_seq', (SELECT MAX(id) FROM variants));");
     } catch(e) {}
   }
 

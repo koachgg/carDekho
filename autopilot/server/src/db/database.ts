@@ -6,7 +6,7 @@ if (process.env.NODE_ENV !== 'production') {
   dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.DATABASE_URL;
+const SUPABASE_URL = process.env.SUPABASE_URL || 'postgresql://postgres.ncnvfeervnbbzhsnlomd:Abhigyan%4011@aws-0-ap-south-1.pooler.supabase.com:6543/postgres';
 
 let pool: Pool | null = null;
 

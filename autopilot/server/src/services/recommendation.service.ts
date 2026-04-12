@@ -9,7 +9,11 @@ export async function getRecommendations(prefs: PreferenceVector, limit: number 
   const cached = cache.get<ScoredCar[]>(cacheKey);
   if (cached) return cached;
 
-  const allCars = await queryAll<Car>('SELECT * FROM cars');
+  const allCars = await queryAll<Car>(`
+    SELECT c.*, v.price_lakh, v.fuel_type, v.transmission, v.mileage_kmpl, v.engine_cc, v.power_bhp, v.torque_nm, v.boot_liters, v.running_cost_per_km, v.variant_name as variant
+    FROM cars c
+    JOIN variants v ON c.id = v.car_id
+  `);
 
   let scored: ScoredCar[] = allCars
     .map((car) => ({

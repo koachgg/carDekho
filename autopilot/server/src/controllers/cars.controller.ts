@@ -8,24 +8,34 @@ import { cache, TTL } from '../services/cache.service';
 export async function search(req: Request, res: Response): Promise<void> {
   const { fuel_type, body_type, transmission, min_price, max_price, min_safety } = req.query;
 
-  let sql = 'SELECT * FROM cars WHERE 1=1';
+  let sql = `
+    SELECT c.*, v.price_lakh, v.fuel_type, v.transmission, v.mileage_kmpl, v.engine_cc, v.power_bhp, v.torque_nm, v.boot_liters, v.running_cost_per_km, v.variant_name as variant
+    FROM cars c
+    JOIN variants v ON c.id = v.car_id
+    WHERE 1=1
+  `;
   const params: unknown[] = [];
 
-  if (fuel_type) { sql += ' AND fuel_type = ?'; params.push(fuel_type); }
-  if (body_type) { sql += ' AND body_type = ?'; params.push(body_type); }
-  if (transmission) { sql += ' AND transmission = ?'; params.push(transmission); }
-  if (min_price) { sql += ' AND price_lakh >= ?'; params.push(Number(min_price)); }
-  if (max_price) { sql += ' AND price_lakh <= ?'; params.push(Number(max_price)); }
-  if (min_safety) { sql += ' AND safety_rating >= ?'; params.push(Number(min_safety)); }
+  if (fuel_type) { sql += ' AND v.fuel_type = ?'; params.push(fuel_type); }
+  if (body_type) { sql += ' AND c.body_type = ?'; params.push(body_type); }
+  if (transmission) { sql += ' AND v.transmission = ?'; params.push(transmission); }
+  if (min_price) { sql += ' AND v.price_lakh >= ?'; params.push(Number(min_price)); }
+  if (max_price) { sql += ' AND v.price_lakh <= ?'; params.push(Number(max_price)); }
+  if (min_safety) { sql += ' AND c.safety_rating >= ?'; params.push(Number(min_safety)); }
 
-  sql += ' ORDER BY price_lakh ASC';
+  sql += ' ORDER BY v.price_lakh ASC';
 
   const cars = await queryAll<Car>(sql, params);
   res.json(cars);
 }
 
 export async function getById(req: Request, res: Response): Promise<void> {
-  const car = await queryOne<Car>('SELECT * FROM cars WHERE id = ?', [Number(req.params.id)]);
+  const car = await queryOne<Car>(`
+    SELECT c.*, v.price_lakh, v.fuel_type, v.transmission, v.mileage_kmpl, v.engine_cc, v.power_bhp, v.torque_nm, v.boot_liters, v.running_cost_per_km, v.variant_name as variant
+    FROM cars c
+    JOIN variants v ON c.id = v.car_id
+    WHERE c.id = ? LIMIT 1
+  `, [Number(req.params.id)]);
 
   if (!car) {
     res.status(404).json({ error: { message: 'Car not found' } });
@@ -67,7 +77,10 @@ export async function compare(req: Request, res: Response): Promise<void> {
   }
 
   const cars = await queryAll<Car>(
-    `SELECT * FROM cars WHERE id IN (${carIds.map(() => '?').join(',')})`,
+    `SELECT c.*, v.price_lakh, v.fuel_type, v.transmission, v.mileage_kmpl, v.engine_cc, v.power_bhp, v.torque_nm, v.boot_liters, v.running_cost_per_km, v.variant_name as variant
+     FROM cars c
+     JOIN variants v ON c.id = v.car_id
+     WHERE c.id IN (${carIds.map(() => '?').join(',')})`,
     carIds
   );
 
