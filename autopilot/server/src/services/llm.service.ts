@@ -61,7 +61,7 @@ export async function callLLM(
   if (groqClient) {
     try {
       const response = await groqClient.chat.completions.create({
-        model: 'llama3-70b-8192', // llama-3.3-70b-versatile was removed; using llama3-70b-8192
+        model: 'llama-3.1-70b-versatile', // Active model as of Nov 2026
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt + (requireJson ? '\nCRITICAL: YOU MUST RETURN ONLY RAW VALID JSON.' : '') }
